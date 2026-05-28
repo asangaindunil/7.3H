@@ -10,7 +10,7 @@ services:
     image: asangaindunil/task-management-api:${DOCKER_TAG:-latest}
     container_name: task-management-api
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/taskdb
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}

@@ -132,7 +132,7 @@ pipeline {
 
                 sh '''
                     sleep 15
-                    curl http://localhost:8080/actuator/health
+                    curl http://localhost:8081/actuator/health
                 '''
             }
         }
@@ -145,7 +145,7 @@ pipeline {
                 echo 'Monitoring endpoints verification...'
 
                 sh '''
-                    curl http://localhost:8080/actuator/prometheus
+                    curl http://localhost:8081/actuator/prometheus
                     curl http://localhost:9090
                     curl http://localhost:3000
                 '''
