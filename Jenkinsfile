@@ -57,19 +57,15 @@ pipeline {
         }
 
         // =========================================================
-        // STAGE 4 - CODE QUALITY (SONARQUBE)
+        // STAGE 4 - CODE QUALITY (SONARCLOUD)
         // =========================================================
         stage('Code Quality') {
-            steps {
-                echo 'Running SonarQube analysis...'
-
-                withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        mvn sonar:sonar \
-                        -Dsonar.projectKey=task-management-api \
-                        -Dsonar.projectName=task-management-api
-                    '''
-                }
+               steps {
+                sh '''
+                    export SONAR_TOKEN=$SONAR_TOKEN
+                    sonar-scanner
+                '''
+            }
             }
         }
 
