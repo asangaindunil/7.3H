@@ -22,6 +22,13 @@
         <java.version>23</java.version>
         <jjwt.version>0.11.5</jjwt.version>
         <lombok.version>1.18.36</lombok.version>
+
+        <!-- SonarCloud -->
+        <sonar.projectKey>asangaindunil_7.3H</sonar.projectKey>
+        <sonar.organization>asanga-indunil</sonar.organization>
+        <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+        <sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.exclusions>**/dto/**,**/entity/**,**/*Application.java</sonar.exclusions>
     </properties>
 
     <dependencies>

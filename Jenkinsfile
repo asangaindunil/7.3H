@@ -60,11 +60,10 @@ pipeline {
         // STAGE 4 - CODE QUALITY (SONARCLOUD)
         // =========================================================
         stage('Code Quality') {
-               steps {
-                sh '''
-                    export SONAR_TOKEN=$SONAR_TOKEN
-                    sonar-scanner
-                '''
+            steps {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    sh 'mvn sonar:sonar -Dsonar.token=$SONAR_TOKEN'
+                }
             }
         }
 
