@@ -117,8 +117,8 @@ pipeline {
                     sh '''
                         rm -rf monitoring/alertmanager.yml
                         envsubst < monitoring/alertmanager.yml.template > monitoring/alertmanager.yml
-                        docker compose down || true
-                        docker compose up -d
+                        docker compose -p task-management-api down || true
+                        docker compose -p task-management-api up -d
                     '''
                 }
             }
