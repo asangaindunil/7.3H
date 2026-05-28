@@ -1,0 +1,39 @@
+groups:
+  - name: task-api-alerts
+    rules:
+
+      # Alert when application is down
+      - alert: ApplicationDown
+        expr: up{job="task-management-api"} == 0
+        for: 1m
+
+        labels:
+          severity: critical
+
+        annotations:
+          summary: "Task Management API is down"
+          description: "The application has been unreachable for more than 1 minute."
+
+      # Alert when CPU usage is high
+      - alert: HighCpuUsage
+        expr: process_cpu_usage > 0.8
+        for: 2m
+
+        labels:
+          severity: warning
+
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80%."
+
+      # Alert when JVM memory usage is high
+      - alert: HighMemoryUsage
+        expr: jvm_memory_used_bytes / jvm_memory_max_bytes > 0.85
+        for: 2m
+
+        labels:
+          severity: warning
+
+        annotations:
+          summary: "High JVM memory usage"
+          description: "Memory usage is above 85%."

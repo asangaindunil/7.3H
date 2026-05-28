@@ -1,16 +1,21 @@
 version: '3.8'
 
+# All secrets are injected at runtime by Jenkins via environment variables.
+# See Jenkinsfile for the withCredentials blocks that populate these vars.
+# For local development, copy .env.example to .env and fill in your values.
+
 services:
   app:
     build: .
+    image: asangaindunil/task-management-api:${DOCKER_TAG:-latest}
     container_name: task-management-api
     ports:
       - "8080:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/taskdb
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: password
-      JWT_SECRET: 4e9a8b2c1d7f3e6a0b5c8d2e9f4a7b3c6d1e8f2a5b9c3d7e0f4a8b2c6d9e1f3a
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: 86400000
     depends_on:
       postgres:
@@ -24,14 +29,14 @@ services:
     container_name: task-postgres
     environment:
       POSTGRES_DB: taskdb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -46,6 +51,7 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/alert.rules.yml:/etc/prometheus/alert.rules.yml
     networks:
       - task-network
     restart: unless-stopped
@@ -56,9 +62,27 @@ services:
     ports:
       - "3000:3000"
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
     volumes:
       - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - task-network
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: task-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      # Generated from monitoring/alertmanager.yml.template by Jenkins before deploy
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
     depends_on:
       - prometheus
     networks:

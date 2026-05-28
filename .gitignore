@@ -1,0 +1,5 @@
+target/
+*.class
+
+# Generated at pipeline runtime from alertmanager.yml.template — never commit
+monitoring/alertmanager.yml

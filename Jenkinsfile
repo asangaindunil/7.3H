@@ -1,165 +1,176 @@
+```groovy
 pipeline {
     agent any
 
     environment {
-        APP_NAME        = 'task-management-api'
-        DOCKER_IMAGE    = "asangaindunil/${APP_NAME}"
-        DOCKER_TAG      = "${BUILD_NUMBER}"
-        SONAR_PROJECT   = 'task-management-api'
-        REGISTRY        = 'docker.io'
+        APP_NAME     = 'task-management-api'
+        DOCKER_IMAGE = 'asangaindunil/task-management-api'
+        DOCKER_TAG   = "${BUILD_NUMBER}"
     }
 
     tools {
         maven 'Maven-3.9'
-        jdk   'JDK-17'
+        jdk 'JDK-23'
     }
 
     stages {
 
+        // =========================================================
+        // STAGE 1 - CHECKOUT
+        // =========================================================
         stage('Checkout') {
             steps {
-                echo '==> Checking out source code'
+                echo 'Cloning source code from GitHub...'
                 checkout scm
             }
         }
 
+        // =========================================================
+        // STAGE 2 - BUILD
+        // =========================================================
         stage('Build') {
             steps {
-                echo '==> Building application with Maven'
+                echo 'Building Spring Boot application...'
                 sh 'mvn clean package -DskipTests'
             }
+
             post {
                 success {
-                    archiveArtifacts artifacts: 'target/task-api.jar', fingerprint: true
+                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
                 }
             }
         }
 
-        stage('Unit Tests') {
+        // =========================================================
+        // STAGE 3 - TEST
+        // =========================================================
+        stage('Test') {
             steps {
-                echo '==> Running unit tests'
+                echo 'Running unit tests...'
                 sh 'mvn test'
             }
+
             post {
                 always {
-                    junit 'target/surefire-reports/**/*.xml'
-                    jacoco(
-                        execPattern: 'target/jacoco.exec',
-                        classPattern: 'target/classes',
-                        sourcePattern: 'src/main/java',
-                        exclusionPattern: '**/*Test*.class'
-                    )
+                    junit 'target/surefire-reports/*.xml'
                 }
             }
         }
 
-        stage('Code Quality - SonarQube') {
+        // =========================================================
+        // STAGE 4 - CODE QUALITY (SONARQUBE)
+        // =========================================================
+        stage('Code Quality') {
             steps {
-                echo '==> Running SonarQube analysis'
+                echo 'Running SonarQube analysis...'
+
                 withSonarQubeEnv('SonarQube') {
-                    sh """
+                    sh '''
                         mvn sonar:sonar \
-                            -Dsonar.projectKey=${SONAR_PROJECT} \
-                            -Dsonar.projectName='Smart Task Management API' \
-                            -Dsonar.java.coveragePlugin=jacoco \
-                            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-                    """
+                        -Dsonar.projectKey=task-management-api \
+                        -Dsonar.projectName=task-management-api
+                    '''
                 }
             }
         }
 
-        stage('Quality Gate') {
+        // =========================================================
+        // STAGE 5 - BUILD DOCKER IMAGE
+        // =========================================================
+        stage('Docker Build') {
             steps {
-                echo '==> Waiting for SonarQube Quality Gate'
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
+                echo 'Building Docker image...'
+
+                sh """
+                    docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                    docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
+                """
             }
         }
 
-        stage('Security Scan - Trivy') {
+        // =========================================================
+        // STAGE 6 - SECURITY SCAN
+        // =========================================================
+        stage('Security Scan') {
             steps {
-                echo '==> Building Docker image for Trivy scan'
-                sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
+                echo 'Running Trivy vulnerability scan...'
 
-                echo '==> Scanning image with Trivy'
                 sh """
                     trivy image \
-                        --exit-code 0 \
-                        --severity HIGH,CRITICAL \
-                        --format table \
-                        --output trivy-report.txt \
-                        ${DOCKER_IMAGE}:${DOCKER_TAG}
+                    --severity HIGH,CRITICAL \
+                    ${DOCKER_IMAGE}:${DOCKER_TAG}
                 """
             }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'trivy-report.txt', allowEmptyArchive: true
-                }
-            }
         }
 
-        stage('Push to Registry') {
-            steps {
-                echo '==> Pushing Docker image to registry'
-                withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS')]) {
-                    sh """
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
-                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
-                        docker push ${DOCKER_IMAGE}:latest
-                    """
-                }
-            }
-        }
-
+        // =========================================================
+        // STAGE 7 - DEPLOY
+        // =========================================================
         stage('Deploy') {
             steps {
-                echo '==> Deploying application with Docker Compose'
-                sh """
-                    export DOCKER_TAG=${DOCKER_TAG}
-                    docker compose down --remove-orphans || true
+                echo 'Deploying application using Docker Compose...'
+
+                sh '''
+                    docker compose down || true
                     docker compose up -d
-                """
+                '''
             }
         }
 
+        // =========================================================
+        // STAGE 8 - HEALTH CHECK
+        // =========================================================
         stage('Health Check') {
             steps {
-                echo '==> Waiting for application to start'
-                sh """
-                    sleep 20
-                    curl --fail --retry 5 --retry-delay 5 \
-                        http://localhost:8080/actuator/health \
-                        | grep -q '"status":"UP"'
-                """
+                echo 'Checking application health...'
+
+                sh '''
+                    sleep 15
+                    curl http://localhost:8080/actuator/health
+                '''
             }
         }
 
-        stage('Release Tag') {
+        // =========================================================
+        // STAGE 9 - MONITORING
+        // =========================================================
+        stage('Monitoring') {
             steps {
-                echo "==> Tagging release v1.0.${BUILD_NUMBER}"
-                sh """
-                    git tag -a "v1.0.${BUILD_NUMBER}" -m "Release ${BUILD_NUMBER} [ci skip]"
-                    git push origin "v1.0.${BUILD_NUMBER}"
-                """
+                echo 'Monitoring endpoints verification...'
+
+                sh '''
+                    curl http://localhost:8080/actuator/prometheus
+                    curl http://localhost:9090
+                    curl http://localhost:3000
+                '''
             }
         }
     }
 
+    // =========================================================
+    // POST ACTIONS
+    // =========================================================
     post {
+
         success {
-            echo "Pipeline completed successfully. Build: ${BUILD_NUMBER}"
+            echo '=================================================='
+            echo 'PIPELINE COMPLETED SUCCESSFULLY'
+            echo "Application : ${APP_NAME}"
+            echo "Build Number: ${BUILD_NUMBER}"
+            echo "Docker Image: ${DOCKER_IMAGE}:${DOCKER_TAG}"
+            echo '=================================================='
         }
+
         failure {
-            echo "Pipeline failed at stage. Check logs for details."
+            echo '=================================================='
+            echo 'PIPELINE FAILED'
+            echo "Build Number: ${BUILD_NUMBER}"
+            echo '=================================================='
         }
+
         always {
-            sh 'docker logout || true'
             cleanWs()
         }
     }
 }
+```

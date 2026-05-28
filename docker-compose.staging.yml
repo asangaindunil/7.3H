@@ -1,0 +1,39 @@
+# Staging environment override — used by the Deploy stage in Jenkins.
+# Usage: docker compose -p taskapi-staging -f docker-compose.yml -f docker-compose.staging.yml up -d
+# All credentials are injected by Jenkins — see Jenkinsfile withCredentials blocks.
+
+services:
+
+  app:
+    container_name: task-management-api-staging
+    ports:
+      - "8081:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/taskdb_staging
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: 86400000
+      SPRING_PROFILES_ACTIVE: staging
+
+  postgres:
+    container_name: task-postgres-staging
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: taskdb_staging
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+  # Prometheus and Grafana are disabled in staging — monitoring serves production only
+  prometheus:
+    profiles:
+      - monitoring-only
+
+  grafana:
+    profiles:
+      - monitoring-only
+
+  alertmanager:
+    profiles:
+      - monitoring-only
