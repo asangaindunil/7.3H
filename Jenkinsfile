@@ -115,6 +115,7 @@ pipeline {
                     string(credentialsId: 'alert-recipient',        variable: 'ALERT_RECIPIENT')
                 ]) {
                     sh '''
+                        rm -rf monitoring/alertmanager.yml
                         envsubst < monitoring/alertmanager.yml.template > monitoring/alertmanager.yml
                         docker compose down || true
                         docker compose up -d
