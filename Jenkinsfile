@@ -5,6 +5,7 @@ pipeline {
         APP_NAME     = 'task-management-api'
         DOCKER_IMAGE = 'asangaindunil/task-management-api'
         DOCKER_TAG   = "${BUILD_NUMBER}"
+        PATH         = "/usr/local/bin:/opt/homebrew/bin:${env.PATH}"
     }
 
     tools {
