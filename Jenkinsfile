@@ -104,10 +104,22 @@ pipeline {
             steps {
                 echo 'Deploying application using Docker Compose...'
 
-                sh '''
-                    docker compose down || true
-                    docker compose up -d
-                '''
+                withCredentials([
+                    string(credentialsId: 'db-username',            variable: 'DB_USERNAME'),
+                    string(credentialsId: 'db-password',            variable: 'DB_PASSWORD'),
+                    string(credentialsId: 'jwt-secret',             variable: 'JWT_SECRET'),
+                    string(credentialsId: 'grafana-admin-password', variable: 'GRAFANA_ADMIN_PASSWORD'),
+                    string(credentialsId: 'smtp-from',              variable: 'SMTP_FROM'),
+                    string(credentialsId: 'smtp-username',          variable: 'SMTP_USERNAME'),
+                    string(credentialsId: 'smtp-password',          variable: 'SMTP_PASSWORD'),
+                    string(credentialsId: 'alert-recipient',        variable: 'ALERT_RECIPIENT')
+                ]) {
+                    sh '''
+                        envsubst < monitoring/alertmanager.yml.template > monitoring/alertmanager.yml
+                        docker compose down || true
+                        docker compose up -d
+                    '''
+                }
             }
         }
 
