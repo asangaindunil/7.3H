@@ -118,6 +118,7 @@ pipeline {
                         rm -rf monitoring/alertmanager.yml
                         envsubst < monitoring/alertmanager.yml.template > monitoring/alertmanager.yml
                         docker compose -p task-management-api down || true
+                        docker rm -f task-management-api task-postgres task-prometheus task-grafana task-alertmanager 2>/dev/null || true
                         docker compose -p task-management-api up -d
                     '''
                 }
