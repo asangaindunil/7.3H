@@ -1,5 +1,6 @@
 package com.deakin.taskapi.controller;
 
+import com.deakin.taskapi.config.SecurityConfig;
 import com.deakin.taskapi.dto.AuthResponse;
 import com.deakin.taskapi.dto.RegisterRequest;
 import com.deakin.taskapi.repository.UserRepository;
@@ -13,8 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -24,6 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = AuthController.class)
+@Import(SecurityConfig.class)
 class AuthControllerTest {
 
     @Autowired private MockMvc mockMvc;
@@ -31,14 +33,13 @@ class AuthControllerTest {
 
     @MockBean private AuthService authService;
     @MockBean private JwtService jwtService;
-    @MockBean private UserDetailsService userDetailsService;
     @MockBean private JwtAuthFilter jwtAuthFilter;
     @MockBean private UserRepository userRepository;
 
     @BeforeEach
     void setUp() throws Exception {
-        // Mockito's default for void methods is to do nothing, which breaks the filter chain.
-        // Stub doFilter to pass the request through so SecurityConfig's permitAll() rules apply.
+        // Without this stub, Mockito's default void-method behaviour swallows the
+        // request and the filter chain never proceeds to the controller.
         doAnswer(inv -> {
             ((FilterChain) inv.getArgument(2)).doFilter(inv.getArgument(0), inv.getArgument(1));
             return null;
