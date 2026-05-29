@@ -86,6 +86,8 @@ pipeline {
             }
         }
 
+        
+
         stage('Deploy') {
             steps {
                 echo 'Deploying application...'
@@ -96,9 +98,18 @@ pipeline {
                     string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET')
                 ]) {
 
-                    sh '''
-                        docker compose down || true
-                        docker compose up -d
+                   sh '''
+                        # Stop existing compose stack
+                        docker compose -p task-management-api down --remove-orphans || true
+
+                        # Remove any leftover containers
+                        docker rm -f task-management-api 2>/dev/null || true
+                        docker rm -f task-postgres 2>/dev/null || true
+                        docker rm -f task-prometheus 2>/dev/null || true
+                        docker rm -f task-grafana 2>/dev/null || true
+
+                        # Start fresh containers
+                        docker compose -p task-management-api up -d
                     '''
                 }
             }
