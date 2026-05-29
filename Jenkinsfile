@@ -5,7 +5,6 @@ pipeline {
         APP_NAME     = 'task-management-api'
         DOCKER_IMAGE = 'asangaindunil/task-management-api'
         DOCKER_TAG   = "${BUILD_NUMBER}"
-        PATH         = "/usr/local/bin:/opt/homebrew/bin:${env.PATH}"
     }
 
     tools {
@@ -15,38 +14,29 @@ pipeline {
 
     stages {
 
-        // =========================================================
-        // STAGE 1 - CHECKOUT
-        // =========================================================
         stage('Checkout') {
             steps {
-                echo 'Cloning source code from GitHub...'
+                echo 'Checking out source code...'
                 checkout scm
             }
         }
 
-        // =========================================================
-        // STAGE 2 - BUILD
-        // =========================================================
         stage('Build') {
             steps {
-                echo 'Building Spring Boot application...'
+                echo 'Building application...'
                 sh 'mvn clean package -DskipTests'
             }
 
             post {
                 success {
-                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                    archiveArtifacts artifacts: 'target/*.jar'
                 }
             }
         }
 
-        // =========================================================
-        // STAGE 3 - TEST
-        // =========================================================
         stage('Test') {
             steps {
-                echo 'Running unit tests...'
+                echo 'Running tests...'
                 sh 'mvn test'
             }
 
@@ -57,20 +47,21 @@ pipeline {
             }
         }
 
-        // =========================================================
-        // STAGE 4 - CODE QUALITY (SONARCLOUD)
-        // =========================================================
         stage('Code Quality') {
             steps {
-                withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
-                    sh 'mvn sonar:sonar -Dsonar.token=$SONAR_TOKEN'
+                echo 'Running SonarCloud analysis...'
+
+                withCredentials([
+                    string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')
+                ]) {
+                    sh '''
+                        mvn sonar:sonar \
+                        -Dsonar.token=$SONAR_TOKEN
+                    '''
                 }
             }
         }
 
-        // =========================================================
-        // STAGE 5 - BUILD DOCKER IMAGE
-        // =========================================================
         stage('Docker Build') {
             steps {
                 echo 'Building Docker image...'
@@ -82,12 +73,9 @@ pipeline {
             }
         }
 
-        // =========================================================
-        // STAGE 6 - SECURITY SCAN
-        // =========================================================
         stage('Security Scan') {
             steps {
-                echo 'Running Trivy vulnerability scan...'
+                echo 'Running Trivy security scan...'
 
                 sh """
                     trivy image \
@@ -97,37 +85,34 @@ pipeline {
             }
         }
 
-        // =========================================================
-        // STAGE 7 - DEPLOY
-        // =========================================================
         stage('Deploy') {
             steps {
-                echo 'Deploying application using Docker Compose...'
+                echo 'Deploying application...'
 
                 withCredentials([
-                    string(credentialsId: 'db-username',            variable: 'DB_USERNAME'),
-                    string(credentialsId: 'db-password',            variable: 'DB_PASSWORD'),
-                    string(credentialsId: 'jwt-secret',             variable: 'JWT_SECRET'),
-                    string(credentialsId: 'grafana-admin-password', variable: 'GRAFANA_ADMIN_PASSWORD'),
-                    string(credentialsId: 'smtp-from',              variable: 'SMTP_FROM'),
-                    string(credentialsId: 'smtp-username',          variable: 'SMTP_USERNAME'),
-                    string(credentialsId: 'smtp-password',          variable: 'SMTP_PASSWORD'),
-                    string(credentialsId: 'alert-recipient',        variable: 'ALERT_RECIPIENT')
+                    string(credentialsId: 'db-username', variable: 'DB_USERNAME'),
+                    string(credentialsId: 'db-password', variable: 'DB_PASSWORD'),
+                    string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET')
                 ]) {
+
                     sh '''
-                        rm -rf monitoring/alertmanager.yml
-                        envsubst < monitoring/alertmanager.yml.template > monitoring/alertmanager.yml
-                        docker compose -p task-management-api down || true
-                        docker rm -f task-management-api task-postgres task-prometheus task-grafana task-alertmanager 2>/dev/null || true
-                        docker compose -p task-management-api up -d
+                        docker compose down || true
+                        docker compose up -d
                     '''
                 }
             }
         }
 
-        // =========================================================
-        // STAGE 8 - HEALTH CHECK
-        // =========================================================
+        stage('Release') {
+            steps {
+                echo 'Creating release version...'
+
+                sh '''
+                    git tag v1.0.${BUILD_NUMBER} || true
+                '''
+            }
+        }
+
         stage('Health Check') {
             steps {
                 echo 'Checking application health...'
@@ -139,41 +124,34 @@ pipeline {
             }
         }
 
-        // =========================================================
-        // STAGE 9 - MONITORING
-        // =========================================================
         stage('Monitoring') {
             steps {
-                echo 'Monitoring endpoints verification...'
+                echo 'Verifying monitoring services...'
 
                 sh '''
-                    curl http://localhost:8081/actuator/prometheus
-                    curl http://localhost:9090
-                    curl http://localhost:3000
+                    curl -f http://localhost:8081/actuator/prometheus
+                    curl -f http://localhost:9090
+                    curl -f http://localhost:3000
                 '''
             }
         }
     }
 
-    // =========================================================
-    // POST ACTIONS
-    // =========================================================
     post {
 
         success {
-            echo '=================================================='
+            echo '====================================='
             echo 'PIPELINE COMPLETED SUCCESSFULLY'
             echo "Application : ${APP_NAME}"
             echo "Build Number: ${BUILD_NUMBER}"
-            echo "Docker Image: ${DOCKER_IMAGE}:${DOCKER_TAG}"
-            echo '=================================================='
+            echo '====================================='
         }
 
         failure {
-            echo '=================================================='
+            echo '====================================='
             echo 'PIPELINE FAILED'
             echo "Build Number: ${BUILD_NUMBER}"
-            echo '=================================================='
+            echo '====================================='
         }
 
         always {
@@ -181,4 +159,3 @@ pipeline {
         }
     }
 }
-
