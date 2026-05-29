@@ -54,16 +54,17 @@ pipeline {
 
         stage('Code Quality') {
             steps {
-                echo 'Running SonarCloud analysis...'
+                echo 'Running SonarCloud analysis with coverage...'
 
                 withCredentials([
                     string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')
                 ]) {
                     sh '''
-                        mvn sonar:sonar \
+                        mvn clean verify sonar:sonar \
                         -Dsonar.token=$SONAR_TOKEN \
                         -Dsonar.qualitygate.wait=true \
-                        -Dsonar.qualitygate.timeout=300
+                        -Dsonar.qualitygate.timeout=300 \
+                        -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
                     '''
                 }
             }
@@ -71,13 +72,22 @@ pipeline {
             post {
                 success {
                     echo 'SonarCloud quality gate PASSED'
+
+                    archiveArtifacts artifacts: 'target/site/jacoco/**', fingerprint: true
+
+                    echo 'Coverage report archived'
                 }
+
                 failure {
-                    echo 'SonarCloud quality gate FAILED - review issues at sonarcloud.io'
+                    echo 'SonarCloud quality gate FAILED'
+                    echo 'Review bugs, vulnerabilities, code smells, and coverage in SonarCloud'
+                }
+
+                always {
+                    junit 'target/surefire-reports/*.xml'
                 }
             }
         }
-
         stage('Docker Build') {
             steps {
                 echo 'Building Docker image...'
@@ -169,14 +179,23 @@ pipeline {
                 '''
             }
         }
-
         stage('Release') {
             steps {
                 echo "Creating release version..."
 
                 sh """
+                    RELEASE_VERSION=v1.0.${BUILD_NUMBER}
+
+                    # Create Docker release tag
                     docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} \
                             ${DOCKER_IMAGE}:release-${DOCKER_TAG}
+
+                    # Create release log
+                    echo "Release Version: \$RELEASE_VERSION" > release.log
+                    echo "Build Number: ${BUILD_NUMBER}" >> release.log
+                    echo "Release Date: \$(date)" >> release.log
+                    echo "" >> release.log
+                    git log -1 >> release.log
 
                     echo "Release image created:"
                     docker images | grep ${DOCKER_IMAGE}
@@ -185,10 +204,13 @@ pipeline {
 
             post {
                 success {
+                    archiveArtifacts artifacts: 'release.log', fingerprint: true
+
                     echo "Release ${DOCKER_TAG} completed successfully"
                 }
             }
         }
+        
 
         stage('Monitoring') {
             steps {
