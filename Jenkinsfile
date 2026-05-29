@@ -117,11 +117,17 @@ pipeline {
                 echo 'Deploying application to staging environment...'
 
                 withCredentials([
-                    string(credentialsId: 'db-username',  variable: 'DB_USERNAME'),
-                    string(credentialsId: 'db-password',  variable: 'DB_PASSWORD'),
-                    string(credentialsId: 'jwt-secret',   variable: 'JWT_SECRET')
+                    string(credentialsId: 'db-username',       variable: 'DB_USERNAME'),
+                    string(credentialsId: 'db-password',       variable: 'DB_PASSWORD'),
+                    string(credentialsId: 'jwt-secret',        variable: 'JWT_SECRET'),
+                    string(credentialsId: 'smtp-from',         variable: 'SMTP_FROM'),
+                    string(credentialsId: 'smtp-username',     variable: 'SMTP_USERNAME'),
+                    string(credentialsId: 'smtp-password',     variable: 'SMTP_PASSWORD'),
+                    string(credentialsId: 'alert-recipient',   variable: 'ALERT_RECIPIENT')
                 ]) {
                     sh '''
+                        envsubst < monitoring/alertmanager.yml.template > monitoring/alertmanager.yml
+
                         docker compose -p task-management-api down --remove-orphans || true
 
                         docker rm -f task-management-api 2>/dev/null || true
