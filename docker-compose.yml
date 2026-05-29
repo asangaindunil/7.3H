@@ -77,6 +77,19 @@ services:
     networks:
       - task-network
 
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: task-alertmanager
+
+    ports:
+      - "9093:9093"
+
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+
+    networks:
+      - task-network
+
 volumes:
   postgres_data:
   grafana_data:

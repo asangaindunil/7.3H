@@ -128,6 +128,7 @@ pipeline {
                         docker rm -f task-postgres       2>/dev/null || true
                         docker rm -f task-prometheus     2>/dev/null || true
                         docker rm -f task-grafana        2>/dev/null || true
+                        docker rm -f task-alertmanager   2>/dev/null || true
 
                         docker compose -p task-management-api up -d
 
@@ -286,7 +287,7 @@ pipeline {
                         echo "--- Prometheus logs ---"
                         docker logs task-prometheus --tail=20 || true
                         echo "--- Alertmanager logs ---"
-                        docker logs task-management-api --tail=20 || true
+                        docker logs task-alertmanager --tail=20 || true
                         echo "--- App logs ---"
                         docker logs task-management-api --tail=20 || true
                     '''
