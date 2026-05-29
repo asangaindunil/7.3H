@@ -286,7 +286,7 @@ pipeline {
                         echo "--- Prometheus logs ---"
                         docker logs task-prometheus --tail=20 || true
                         echo "--- Alertmanager logs ---"
-                        docker logs task-alertmanager --tail=20 || true
+                        docker logs task-management-api --tail=20 || true
                         echo "--- App logs ---"
                         docker logs task-management-api --tail=20 || true
                     '''
