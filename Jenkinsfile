@@ -126,7 +126,7 @@ pipeline {
                     string(credentialsId: 'alert-recipient',   variable: 'ALERT_RECIPIENT')
                 ]) {
                     sh '''
-                        envsubst < monitoring/alertmanager.yml.template > monitoring/alertmanager.yml
+                        envsubst < monitoring/alertmanager.yml.template > /tmp/task-api-alertmanager.yml
 
                         docker compose -p task-management-api down --remove-orphans || true
 
@@ -244,9 +244,9 @@ pipeline {
                     echo "Simulating application outage to verify alerting pipeline..."
 
                     docker stop task-management-api
-                    echo "[DRILL] Application container stopped — waiting 80s for alert to go pending→firing (for: 1m)"
+                    echo "[DRILL] Application container stopped — waiting 100s for alert to go pending→firing (for: 1m)"
 
-                    sleep 80
+                    sleep 100
 
                     ALERTS=$(curl -sf "http://localhost:9093/api/v2/alerts" || echo "[]")
                     echo "Alertmanager response: $ALERTS"
