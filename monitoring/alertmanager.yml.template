@@ -28,7 +28,8 @@ receivers:
   - name: 'email-team'
     email_configs:
       - to: '${ALERT_RECIPIENT}'
-        subject: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }} — Task API'
+        headers:
+          Subject: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }} — Task API'
         html: |
           <h3>{{ .Status | toUpper }}: {{ .GroupLabels.alertname }}</h3>
           {{ range .Alerts }}
