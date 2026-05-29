@@ -244,9 +244,9 @@ pipeline {
                     echo "Simulating application outage to verify alerting pipeline..."
 
                     docker stop task-management-api
-                    echo "[DRILL] Application container stopped — alert should fire within 15s"
+                    echo "[DRILL] Application container stopped — waiting 80s for alert to go pending→firing (for: 1m)"
 
-                    sleep 20
+                    sleep 80
 
                     ALERTS=$(curl -sf "http://localhost:9093/api/v2/alerts" || echo "[]")
                     echo "Alertmanager response: $ALERTS"
